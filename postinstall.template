@@ -1,0 +1,152 @@
+export AMBARI_HOST=$(hostname -f)
+export CLUSTER_NAME=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
+
+if [ $LOCALREALM == "n" ]; then
+
+ambari-server --setup-security --ldap-url=$ADHOST --ldap-user-class=user --ldap-user-attr=sAMAccountName --ldap-group-class=group --ldap-member-attr=member --ldap-dn=distinguishedName --ldap-manager-dn=$USER@$UDOMAIN --ldap-manager-password=$PASSWORD --ldap-base-dn=$BASEDN
+
+fi
+
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS/components/KERBEROS_CLIENT
+
+if [ $LOCALREALM == "n" ]; then
+
+  tee payload <<EOF
+  [
+    {
+      "Clusters": {
+        "desired_config": {
+          "type": "krb5-conf",
+          "tag": "version1",
+          "properties": {
+            "domains":"",
+            "manage_krb5_conf": "false",
+            "conf_dir":"/etc"
+          }
+        }
+      }
+    },
+    {
+      "Clusters": {
+        "desired_config": {
+          "type": "kerberos-env",
+          "tag": "version1",
+          "properties": {
+            "kdc_type": "active-directory",
+            "manage_identities": "true",
+            "install_packages": "true",
+            "encryption_types": "aes des3-cbc-sha1 rc4 des-cbc-md5",
+            "realm" : "$UDOMAIN",
+            "kdc_host" : "$ADHOST",
+            "admin_server_host" : "$ADHOST",
+            "ldap_url" : "LDAP://$ADHOST:389",
+            "container_dn" : "$CONTAINERDN",
+            "executable_search_paths" : "/usr/bin, /usr/kerberos/bin, /usr/sbin, /usr/lib/mit/bin, /usr/lib/mit/sbin",
+            "password_length": "20",
+            "password_min_lowercase_letters": "1",
+            "password_min_uppercase_letters": "1",
+            "password_min_digits": "1",
+            "password_min_punctuation": "1",
+            "password_min_whitespace": "0",
+            "service_check_principal_name" : "${cluster_name}-${short_date}",
+            "case_insensitive_username_rules" : "false",
+            "create_attributes_template" :  "{\n \"objectClass\": [\"top\", \"person\", \"organizationalPerson\", \"user\"],\n \"cn\": \"$principal_name\",\n #if( $is_service )\n \"servicePrincipalName\": \"$principal_name\",\n #end\n \"userPrincipalName\": \"$normalized_principal\",\n \"unicodePwd\": \"$password\",\n \"accountExpires\": \"0\",\n \"userAccountControl\": \"66048\"}"
+          }
+        }
+      }
+    }
+  ]
+EOF
+else
+  tee payload <<EOF
+
+  [
+    {
+      "Clusters": {
+        "desired_config": {
+          "type": "krb5-conf",
+          "tag": "version1",
+          "properties": {
+            "domains":"",
+            "manage_krb5_conf": "false",
+            "conf_dir":"/etc"  }
+        }
+      }
+    },
+    {
+      "Clusters": {
+        "desired_config": {
+          "type": "kerberos-env",
+          "tag": "version1",
+          "properties": {
+            "kdc_type": "mit-kdc",
+            "manage_identities": "true",
+            "install_packages": "true",
+            "encryption_types": "aes des3-cbc-sha1 rc4 des-cbc-md5",
+            "realm" : "EXAMPLE.COM",
+            "kdc_host" : "KDC_SERVER",
+            "admin_server_host" : "KDC_SERVER",
+            "executable_search_paths" : "/usr/bin, /usr/kerberos/bin, /usr/sbin, /usr/lib/mit/bin, /usr/lib/mit/sbin",
+            "password_length": "20",
+            "password_min_lowercase_letters": "1",
+            "password_min_uppercase_letters": "1",
+            "password_min_digits": "1",
+            "password_min_punctuation": "1",
+            "password_min_whitespace": "0",
+            "service_check_principal_name" : "${cluster_name}-${short_date}",
+            "case_insensitive_username_rules" : "false"
+          }
+        }
+      }
+    }
+  ]
+
+
+EOF
+
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d @./payload http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME
+sleep 5
+
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST -d '{"host_components" : [{"HostRoles" : {"component_name":"KERBEROS_CLIENT"}}]}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts?Hosts/host_name=$AMBARI_HOST
+sleep 5
+
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d '{"ServiceInfo": {"state" : "INSTALLED"}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
+sleep5
+TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d  '{"RequestInfo":{"context":"Stop Service"},"Body":{"ServiceInfo":{"state":"INSTALLED"}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services | grep "id" | grep -Po '([0-9]+)')
+LOOPESCAPE="false"
+until [ "$LOOPESCAPE" == true ]; do
+    TASKSTATUS=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+    if [ "$TASKSTATUS" == COMPLETED ]; then
+        LOOPESCAPE="true"
+    fi
+    sleep 2
+done
+
+
+tee payload <<EOF
+
+{
+  "session_attributes" : {
+    "kerberos_admin" : {
+      "principal" : "$USER@UDOMAIN",
+      "password" : "$PASSWORD"
+    }
+  },
+  "Clusters": {
+    "security_type" : "KERBEROS"
+  }
+}
+EOF
+
+TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d @./payload http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME | grep "id" | grep -Po '([0-9]+)')
+LOOPESCAPE="false"
+until [ "$LOOPESCAPE" == true ]; do
+    TASKSTATUS=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+    if [ "$TASKSTATUS" == COMPLETED ]; then
+        LOOPESCAPE="true"
+    fi
+    sleep 2
+done
+
+curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d '{"ServiceInfo": {"state" : "STARTED"}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services

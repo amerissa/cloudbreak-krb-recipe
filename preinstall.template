@@ -1,0 +1,119 @@
+#Pre 
+yum -y install ntp
+ntpdate 0.rhel.pool.ntp.org
+systemctl start  ntpd.service
+systemctl enable ntpd.service
+
+yum -y install krb5-workstation
+
+tee /etc/krb5.conf <<EOF
+[libdefaults]
+  renew_lifetime = 7d
+  forwardable = true
+  udp_preference_limit = 1
+  default_realm = $UDOMAIN
+  ticket_lifetime = 24h
+  dns_lookup_realm = false
+  dns_lookup_kdc = false
+  default_ccache_name = /tmp/krb5cc_%{uid}
+  default_tgs_enctypes = aes256-cts-hmac-sha1-96 arcfour-hmac
+  default_tkt_enctypes = aes256-cts-hmac-sha1-96 arcfour-hmac
+
+[domain_realm]
+  $LDOMAIN = $UDOMAIN
+  .$LDOMAIN = $UDOMAIN
+
+[logging]
+  default = FILE:/var/log/krb5kdc.log
+  admin_server = FILE:/var/log/kadmind.log
+  kdc = FILE:/var/log/krb5kdc.log
+
+[realms]
+  $UDOMAIN = {
+    admin_server = $ADSERVER
+    kdc = $ADSERVER
+  }
+
+EOF
+
+if [ $LOCALREALM == "y" ] && yum list installed | grep ambari-server; then
+  yum -y install krb5-server krb5-libs
+  tee /etc/krb5.conf <<EOF
+  default_realm = $UDOMAIN
+
+[kdcdefaults]
+    v4_mode = nopreauth
+    kdc_ports = 0
+
+[realms]
+    $UDOMAIN = {
+        kdc_ports = 88
+        admin_keytab = /etc/kadm5.keytab
+        database_name = /var/kerberos/krb5kdc/principal
+        acl_file = /var/kerberos/krb5kdc/kadm5.acl
+        key_stash_file = /var/kerberos/krb5kdc/stash
+        max_life = 10h 0m 0s
+        max_renewable_life = 7d 0h 0m 0s
+        master_key_type = des3-hmac-sha1
+        supported_enctypes = arcfour-hmac:normal des3-hmac-sha1:normal des-cbc-crc:normal des:normal des:v4 des:norealm des:onlyrealm des:afs3
+        default_principal_flags = +preauth
+    }
+
+EOF
+
+  echo "*/admin@$UDOMAIN	    *" > /var/kerberos/krb5kdc/kadm5.acl
+
+  kdb5_util create -r $UDOMAIN -s -P "$PASSWORD"
+
+  systemctl start krb5kdc.service
+  systemctl start kadmin.service
+  systemctl enable krb5kdc.service
+  systemctl enable kadmin.service
+  kadmin.local -q "addprinc ambari/admin -pw $PASSWORD"
+  kadmin.local -q "ktadd -k /etc/security/keytabs/ambari.keytab -norandkey"
+fi
+
+##AD Configs
+if [ $LOCALREALM == "n" ]; then
+  yum -y install adcli sssd
+
+  tee /etc/sssd/sssd.conf <<EOF
+
+[sssd]
+## master & data nodes only require nss. Edge nodes require pam.
+services = nss, pam, ssh, autofs, pac
+config_file_version = 2
+domains = $UDOMAIN
+override_space = _
+
+[domain/$DOMAIN]
+id_provider = ad
+ad_server = $ADSERVER
+auth_provider = ad
+chpass_provider = ad
+access_provider = ad
+enumerate = False
+ad_access_filter = $GROUPSFILTER
+krb5_realm = $UDOMAIN
+ldap_schema = ad
+ldap_id_mapping = True
+cache_credentials = True
+ldap_access_order = expire
+ldap_account_expire_policy = ad
+ldap_force_upper_case_realm = true
+fallback_homedir = /home/%u
+default_shell = /bin/false
+ldap_referrals = false
+
+[nss]
+memcache_timeout = 3600
+override_shell = /bin/bash
+
+EOF
+##(&(memberOf=cn=admins,ou=groups,dc=example,dc=com)(unixHomeDirectory=*))
+  echo -n "$PASSWORD" | adcli join --stdin-password --domain-controller=$ADSERVER --domain-ou="$MACHINEOU" --login-user="$ADUSER@$UDOMAIN"
+  systemctl start sssd
+
+  authconfig --enablesssd --enablesssdauth --update
+
+fi
