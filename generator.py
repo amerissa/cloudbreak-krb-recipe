@@ -3,8 +3,8 @@ import requests
 from string import Template
 
 
-pretemplate = Template(requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/preinstall.template').text)
-posttemplate = Template(requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/postinstall.template').text)
+#posttemplate = requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/postinstall.template').text
+posttemplate = open('postinstall.template', 'r').read()
 
 while True:
     ADREALM = raw_input('Is AD available? (This will setup a local krb5 realm if not available ) y/n: ')
@@ -25,13 +25,18 @@ if ADREALM is 'y':
     PASSWORD = raw_input('AD Password to use for binding: ')
     BASEDN = raw_input('AD Base DN for Ambari: ')
     CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
-    template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN. 'CONTAINERDN' : CONTAINERDN }
 else:
     PASSWORD= raw_input('Password for Kerberos Realm and Ambari: ')
-    template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'PASSWORD' : PASSWORD }
+    ADSERVER = None
+    MACHINEOU = None
+    GROUPSFILTER = None
+    ADUSER = 'ambari/admin'
+    BASEDN = None
+    CONTAINERDN = None
+
+
+template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
 
 finaltemplatepost = open('./postinstall.sh', 'w')
-finaltemplatepre = open('./preinstall.sh', 'w')
 
 finaltemplatepost.write(posttemplate.format(**template))
-finaltemplatepre.write(pretemplate.format(**template))
