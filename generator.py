@@ -17,14 +17,15 @@ DOMAIN = raw_input('Domain: ')
 UDOMAIN = DOMAIN.upper()
 LDOMAIN = DOMAIN.lower()
 
-if ADREALM == 'y'
+if ADREALM is 'y':
     ADSERVER = raw_input('AD Server: ')
     MACHINEOU = raw_input('Machine OU (For SSSD configs): ')
     GROUPSFILTER = raw_input('Access Filter for SSSD: ')
     ADUSER = raw_input('AD User to use for binding: ')
     PASSWORD = raw_input('AD Password to use for binding: ')
     BASEDN = raw_input('AD Base DN for Ambari: ')
-    template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN }
+    CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
+    template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN. 'CONTAINERDN' : CONTAINERDN }
 else:
     PASSWORD= raw_input('Password for Kerberos Realm and Ambari: ')
     template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'PASSWORD' : PASSWORD }
@@ -32,5 +33,5 @@ else:
 finaltemplatepost = open('./postinstall.sh', 'w')
 finaltemplatepre = open('./preinstall.sh', 'w')
 
-finaltemplatepost.write(posttemplate.substitute(template))
-finaltemplatepre.write(pretemplate.substitute(template))
+finaltemplatepost.write(posttemplate.format(**template))
+finaltemplatepre.write(pretemplate.format(**template))

@@ -11,7 +11,7 @@ tee /etc/krb5.conf <<EOF
   renew_lifetime = 7d
   forwardable = true
   udp_preference_limit = 1
-  default_realm = $UDOMAIN
+  default_realm = {UDOMAIN}
   ticket_lifetime = 24h
   dns_lookup_realm = false
   dns_lookup_kdc = false
@@ -20,8 +20,8 @@ tee /etc/krb5.conf <<EOF
   default_tkt_enctypes = aes256-cts-hmac-sha1-96 arcfour-hmac
 
 [domain_realm]
-  $LDOMAIN = $UDOMAIN
-  .$LDOMAIN = $UDOMAIN
+  {LDOMAIN} = {UDOMAIN}
+  .{LDOMAIN} = {UDOMAIN}
 
 [logging]
   default = FILE:/var/log/krb5kdc.log
@@ -29,24 +29,24 @@ tee /etc/krb5.conf <<EOF
   kdc = FILE:/var/log/krb5kdc.log
 
 [realms]
-  $UDOMAIN = {
-    admin_server = $ADSERVER
-    kdc = $ADSERVER
+  {UDOMAIN} = {
+    admin_server = {ADSERVER}
+    kdc = {ADSERVER}
   }
 
 EOF
 
-if [ $ADREALM == "n" ] && yum list installed | grep ambari-server; then
+if [ {ADREALM} == "n" ] && yum list installed | grep ambari-server; then
   yum -y install krb5-server krb5-libs
   tee /etc/krb5.conf <<EOF
-  default_realm = $UDOMAIN
+  default_realm = {UDOMAIN}
 
 [kdcdefaults]
     v4_mode = nopreauth
     kdc_ports = 0
 
 [realms]
-    $UDOMAIN = {
+    {UDOMAIN} = {
         kdc_ports = 88
         admin_keytab = /etc/kadm5.keytab
         database_name = /var/kerberos/krb5kdc/principal
@@ -61,20 +61,20 @@ if [ $ADREALM == "n" ] && yum list installed | grep ambari-server; then
 
 EOF
 
-  echo "*/admin@$UDOMAIN	    *" > /var/kerberos/krb5kdc/kadm5.acl
+  echo "*/admin@{UDOMAIN}	    *" > /var/kerberos/krb5kdc/kadm5.acl
 
-  kdb5_util create -r $UDOMAIN -s -P "$PASSWORD"
+  kdb5_util create -r {UDOMAIN} -s -P "{PASSWORD}"
 
   systemctl start krb5kdc.service
   systemctl start kadmin.service
   systemctl enable krb5kdc.service
   systemctl enable kadmin.service
-  kadmin.local -q "addprinc ambari/admin -pw $PASSWORD"
+  kadmin.local -q "addprinc ambari/admin -pw {PASSWORD}"
   kadmin.local -q "ktadd -k /etc/security/keytabs/ambari.keytab -norandkey"
 fi
 
 ##AD Configs
-if [ $ADREALM == "y" ]; then
+if [ {ADREALM} == "y" ]; then
   yum -y install adcli sssd
 
   tee /etc/sssd/sssd.conf <<EOF
@@ -83,18 +83,18 @@ if [ $ADREALM == "y" ]; then
 ## master & data nodes only require nss. Edge nodes require pam.
 services = nss, pam, ssh, autofs, pac
 config_file_version = 2
-domains = $UDOMAIN
+domains = {UDOMAIN}
 override_space = _
 
-[domain/$UDOMAIN]
+[domain/{UDOMAIN}]
 id_provider = ad
-ad_server = $ADSERVER
+ad_server = {ADSERVER}
 auth_provider = ad
 chpass_provider = ad
 access_provider = ad
 enumerate = False
-ad_access_filter = $GROUPSFILTER
-krb5_realm = $UDOMAIN
+ad_access_filter = {GROUPSFILTER}
+krb5_realm = {UDOMAIN}
 ldap_schema = ad
 ldap_id_mapping = True
 cache_credentials = True
@@ -111,7 +111,7 @@ override_shell = /bin/bash
 
 EOF
 ##(&(memberOf=cn=admins,ou=groups,dc=example,dc=com)(unixHomeDirectory=*))
-  echo -n "$PASSWORD" | adcli join --stdin-password --domain-controller=$ADSERVER --domain-ou="$MACHINEOU" --login-user="$ADUSER@$UDOMAIN"
+  echo -n "{PASSWORD}" | adcli join --stdin-password --domain-controller={ADSERVER} --domain-ou="{MACHINEOU}" --login-user="{ADUSER}@{UDOMAIN}"
   systemctl start sssd
 
   authconfig --enablesssd --enablesssdauth --update
