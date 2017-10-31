@@ -1,17 +1,18 @@
 export AMBARI_HOST=$(hostname -f)
 export CLUSTER_NAME=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
 
-if [ $LOCALREALM == "n" ]; then
+if [ $ADREALM == "y" ]; then
 
-ambari-server --setup-security --ldap-url=$ADHOST --ldap-user-class=user --ldap-user-attr=sAMAccountName --ldap-group-class=group --ldap-member-attr=member --ldap-dn=distinguishedName --ldap-manager-dn=$USER@$UDOMAIN --ldap-manager-password=$PASSWORD --ldap-base-dn=$BASEDN
+ambari-server --setup-security --ldap-url=$ADSERVER --ldap-user-class=user --ldap-user-attr=sAMAccountName --ldap-group-class=group --ldap-member-attr=member --ldap-dn=distinguishedName --ldap-manager-dn=$ADUSER@$UDOMAIN --ldap-manager-password=$PASSWORD --ldap-base-dn=$BASEDN
 
 fi
 
 curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
 curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS/components/KERBEROS_CLIENT
 
-if [ $LOCALREALM == "n" ]; then
-
+if [ $ADREALM == "y" ]; then
+  USER=$ADUSER
+  
   tee payload <<EOF
   [
     {
@@ -38,9 +39,9 @@ if [ $LOCALREALM == "n" ]; then
             "install_packages": "true",
             "encryption_types": "aes des3-cbc-sha1 rc4 des-cbc-md5",
             "realm" : "$UDOMAIN",
-            "kdc_host" : "$ADHOST",
-            "admin_server_host" : "$ADHOST",
-            "ldap_url" : "LDAP://$ADHOST:389",
+            "kdc_host" : "$ADSERVER",
+            "admin_server_host" : "$ADSERVER",
+            "ldap_url" : "LDAP://$ADSERVER:389",
             "container_dn" : "$CONTAINERDN",
             "executable_search_paths" : "/usr/bin, /usr/kerberos/bin, /usr/sbin, /usr/lib/mit/bin, /usr/lib/mit/sbin",
             "password_length": "20",
@@ -59,6 +60,7 @@ if [ $LOCALREALM == "n" ]; then
   ]
 EOF
 else
+  user="ambari/admin"
   tee payload <<EOF
 
   [
@@ -84,7 +86,7 @@ else
             "manage_identities": "true",
             "install_packages": "true",
             "encryption_types": "aes des3-cbc-sha1 rc4 des-cbc-md5",
-            "realm" : "EXAMPLE.COM",
+            "realm" : "$UDOMAIN",
             "kdc_host" : "KDC_SERVER",
             "admin_server_host" : "KDC_SERVER",
             "executable_search_paths" : "/usr/bin, /usr/kerberos/bin, /usr/sbin, /usr/lib/mit/bin, /usr/lib/mit/sbin",

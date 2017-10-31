@@ -1,4 +1,4 @@
-#Pre 
+#Pre
 yum -y install ntp
 ntpdate 0.rhel.pool.ntp.org
 systemctl start  ntpd.service
@@ -36,7 +36,7 @@ tee /etc/krb5.conf <<EOF
 
 EOF
 
-if [ $LOCALREALM == "y" ] && yum list installed | grep ambari-server; then
+if [ $ADREALM == "n" ] && yum list installed | grep ambari-server; then
   yum -y install krb5-server krb5-libs
   tee /etc/krb5.conf <<EOF
   default_realm = $UDOMAIN
@@ -74,7 +74,7 @@ EOF
 fi
 
 ##AD Configs
-if [ $LOCALREALM == "n" ]; then
+if [ $ADREALM == "y" ]; then
   yum -y install adcli sssd
 
   tee /etc/sssd/sssd.conf <<EOF
@@ -86,7 +86,7 @@ config_file_version = 2
 domains = $UDOMAIN
 override_space = _
 
-[domain/$DOMAIN]
+[domain/$UDOMAIN]
 id_provider = ad
 ad_server = $ADSERVER
 auth_provider = ad
