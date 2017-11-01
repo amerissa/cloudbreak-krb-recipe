@@ -113,6 +113,7 @@ memcache_timeout = 3600
 override_shell = /bin/bash
 
 EOF
+chmod 600 /etc/sssd/sssd.conf
   echo -n "{PASSWORD}" | adcli join --stdin-password --domain-controller={ADSERVER} --domain-ou="{MACHINEOU}" --login-user="{ADUSER}@{UDOMAIN}"
   systemctl start sssd
 
@@ -126,11 +127,42 @@ if yum list installed | grep ambari-server; then
   export CLUSTER_NAME=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
 
   if [ {ADREALM} == "y" ]; then
+    tee cert<<EOF
+{CERT}
+EOF
 
-  ambari-server --setup-security --ldap-url={ADSERVER}--ldap-user-class=user --ldap-user-attr=sAMAccountName --ldap-group-class=group --ldap-member-attr=member --ldap-dn=distinguishedName --ldap-manager-dn={ADUSER}@{UDOMAIN} --ldap-manager-password={PASSWORD} --ldap-base-dn={BASEDN}
+  keytool="$(cat /etc/ambari-server/conf/ambari.properties | grep java.home | cut -d '=' -f 2 )/bin/keytool"
+  $keytool -importcert -keystore /etc/ambari-server/conf/truststore.jks -file cert -storepass "{PASSWORD}" -noprompt -alias LDAPCERT
+
+  ambari-server setup-ldap --security-option=setup-ldap \
+  --ldap-url="{ADSERVER}:636" \
+  --ldap-ssl="true" \
+  --ldap-user-class="person" \
+  --ldap-user-attr="sAMAccountName" \
+  --ldap-group-class="group" \
+  --ldap-group-attr="cn" \
+  --ldap-member-attr="member" \
+  --ldap-dn="distunguishedName" \
+  --ldap-base-dn="{BASEDN}" \
+  --ldap-referral="" \
+  --ldap-bind-anonym=false \
+  --ldap-manager-dn="{ADUSER}@{UDOMAIN}" \
+  --ldap-manager-password="{PASSWORD}" \
+  --ldap-save-settings \
+  --truststore-type="jks" \
+  --truststore-path="/etc/ambari-server/conf/truststore.jks" \
+  --truststore-password="{PASSWORD}" \
+  --ldap-secondary-url=""
+  --ldap-sync-username-collisions-behavior=convert
+
+  ambari-server setup-security --security-option=setup-truststore --truststore-reconfigure --truststore-type=jks --truststore-path=/etc/ambari-server/conf/truststore.jks --truststore-password="{PASSWORD}"
   service ambari-server restart
-  fi
+  c
+else
+ambari-server setup-security --security-option=setup-kerberos-jaas --jaas-principal="{ADUSER}@{UDOMAIN}" --jaas-keytab="/etc/security/keytabs/ambari.keytab"
+service ambari-server restart
 
+fi
   curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
   curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS/components/KERBEROS_CLIENT
 
@@ -150,9 +182,9 @@ tee payload.json <<EOF
   "install_packages": "true",
   "encryption_types": "aes des3-cbc-sha1 rc4 des-cbc-md5",
   "realm" : "{UDOMAIN}",
-  "kdc_host" : "{ADSERVER}",
+  "kdc_hosts" : "{ADSERVER}",
   "admin_server_host" : "{ADSERVER}",
-  "ldap_url" : "LDAP://{ADSERVER}:389",
+  "ldap_url" : "ldaps://{ADSERVER}:636",
   "container_dn" : "{CONTAINERDN}",
   "executable_search_paths" : "/usr/bin, /usr/kerberos/bin, /usr/sbin, /usr/lib/mit/bin, /usr/lib/mit/sbin",
   "password_length": "20",
@@ -211,10 +243,11 @@ fi
   TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d  '{{"RequestInfo":{{"context":"Stop Service"}},"Body":{{"ServiceInfo":{{"state":"INSTALLED"}}}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services | grep "id" | grep -Po '([0-9]+)')
   LOOPESCAPE="false"
   until [ "$LOOPESCAPE" == true ]; do
-      TASKSTATUS=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+      TASKSTATUS=$(curl -s -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
       if [ "$TASKSTATUS" == COMPLETED ]; then
           LOOPESCAPE="true"
       fi
+      echo Stopping Cluster
       sleep 2
   done
 
@@ -239,12 +272,14 @@ EOF
   TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d @./payload.json http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME | grep "id" | grep -Po '([0-9]+)')
   LOOPESCAPE="false"
   until [ "$LOOPESCAPE" == true ]; do
-      TASKSTATUS=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+      TASKSTATUS=$(curl -s -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
       if [ "$TASKSTATUS" == COMPLETED ]; then
           LOOPESCAPE="true"
       fi
+      echo Enbaling krb5
       sleep 2
   done
 
   curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d '{{"ServiceInfo": {{"state" : "STARTED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services
+  echo Starting Cluster
 fi

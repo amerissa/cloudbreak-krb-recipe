@@ -3,8 +3,8 @@ import requests
 from string import Template
 
 
-#posttemplate = requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/postinstall.template').text
-posttemplate = open('postinstall.template', 'r').read()
+posttemplate = requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/postinstall.template').text
+#posttemplate = open('postinstall.template', 'r').read()
 
 while True:
     ADREALM = raw_input('Is AD available? (This will setup a local krb5 realm if not available ) y/n: ')
@@ -16,6 +16,8 @@ while True:
 DOMAIN = raw_input('Domain: ')
 UDOMAIN = DOMAIN.upper()
 LDOMAIN = DOMAIN.lower()
+CERTLOC = raw_input('Path of AD Cert in pem format: ')
+CERT = open(CERTLOC, 'r').read()
 
 if ADREALM is 'y':
     ADSERVER = raw_input('AD Server: ')
@@ -35,7 +37,7 @@ else:
     CONTAINERDN = None
 
 
-template = { 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
+template = { 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
 
 finaltemplatepost = open('./postinstall.sh', 'w')
 
