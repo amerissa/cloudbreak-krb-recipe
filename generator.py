@@ -4,7 +4,7 @@ from string import Template
 
 
 posttemplate = requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/postinstall.template').text
-#posttemplate = open('postinstall.template', 'r').read()
+pretemplate = requests.get('https://raw.githubusercontent.com/amerissa/cloudbreak-krb-recipe/master/preinstall.template').text
 
 while True:
     ADREALM = raw_input('Is AD available? (This will setup a local krb5 realm if not available ) y/n: ')
@@ -40,5 +40,7 @@ else:
 template = { 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
 
 finaltemplatepost = open('./postinstall.sh', 'w')
+finaltemplatepre = open('./preinstall.sh', 'w')
 
 finaltemplatepost.write(posttemplate.format(**template))
+finaltemplatepre.write(pretemplate.format(**template))
