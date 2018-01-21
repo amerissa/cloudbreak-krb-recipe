@@ -35,11 +35,15 @@ tee /etc/krb5.conf <<EOF
   }}
 
 EOF
-server=`cat /etc/ambari-agent/conf/ambari-agent.ini | grep hostname | cut -d '=' -f 2`
+server=`cat /etc/ambari-agent/conf/ambari-agent.ini | grep hostname= | cut -d '=' -f 2 | sed 's/ //g'`
 if [ {ADREALM} == "n" ] ; then
   sed -i "s/None/$server/g" /etc/krb5.conf
 fi
-if [ {ADREALM} == "n" ] && yum list installed | grep ambari-server; then
+if [ {KDCEXISTS} == "y" ]; then
+  sed -i "s/None/{KDC}/g" /etc/krb5.conf
+fi
+if [ {ADREALM} == "n" ] && yum list installed | grep ambari-server && [ {KDCEXISTS} == "n" ]; then
+; then
   yum -y install krb5-server krb5-libs
   tee /var/kerberos/krb5kdc/kdc.conf  <<EOF
   default_realm = {UDOMAIN}

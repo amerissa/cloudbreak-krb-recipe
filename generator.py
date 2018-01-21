@@ -16,18 +16,25 @@ while True:
 DOMAIN = raw_input('Domain: ')
 UDOMAIN = DOMAIN.upper()
 LDOMAIN = DOMAIN.lower()
-CERTLOC = raw_input('Path of AD Cert in pem format: ')
-CERT = open(CERTLOC, 'r').read()
+
 
 if ADREALM is 'y':
     ADSERVER = raw_input('AD Server: ')
     MACHINEOU = raw_input('Machine OU (For SSSD configs): ')
     GROUPSFILTER = raw_input('Access Filter for SSSD: ')
     ADUSER = raw_input('AD User to use for binding: ')
+    CERTLOC = raw_input('Path of AD Cert in pem format: ')
+    CERT = open(CERTLOC, 'r').read()
     PASSWORD = raw_input('AD Password to use for binding: ')
     BASEDN = raw_input('AD Base DN for Ambari: ')
     CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
 else:
+    KDCEXISTS = raw_input('Use an Exisint KDC?(y/n) ')
+    if KDCEXISTS = "y":
+        KDC = raw_input('Hostname of KDC: ')
+        print("Create principal ambari/admin in your KDC, you will promopted for the password")
+    else
+        KDC = None
     PASSWORD= raw_input('Password for Kerberos Realm and Ambari: ')
     ADSERVER = None
     MACHINEOU = None
@@ -37,7 +44,7 @@ else:
     CONTAINERDN = None
 
 
-template = { 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
+template = { 'KDCEXISTS' : KDCEXISTS, 'KDC' : KDC, 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
 
 finaltemplatepost = open('./postinstall.sh', 'w')
 finaltemplatepre = open('./preinstall.sh', 'w')
