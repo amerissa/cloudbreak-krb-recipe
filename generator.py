@@ -30,7 +30,7 @@ if ADREALM is 'y':
     CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
 else:
     KDCEXISTS = raw_input('Use an Exisint KDC?(y/n) ')
-    if KDCEXISTS = "y":
+    if KDCEXISTS == "y":
         KDC = raw_input('Hostname of KDC: ')
         print("Create principal ambari/admin in your KDC, you will promopted for the password")
     else
