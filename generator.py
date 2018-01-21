@@ -29,11 +29,11 @@ if ADREALM is 'y':
     BASEDN = raw_input('AD Base DN for Ambari: ')
     CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
 else:
-    KDCEXISTS = raw_input('Use an Exisint KDC?(y/n) ')
+    KDCEXISTS = raw_input('Use an Existing KDC?(y/n) ')
     if KDCEXISTS == "y":
         KDC = raw_input('Hostname of KDC: ')
         print("Create principal ambari/admin in your KDC, you will promopted for the password")
-    else
+    else:
         KDC = None
     PASSWORD= raw_input('Password for Kerberos Realm and Ambari: ')
     ADSERVER = None
@@ -41,6 +41,8 @@ else:
     GROUPSFILTER = None
     ADUSER = 'ambari/admin'
     BASEDN = None
+    CERTLOC = None
+    CERT = None
     CONTAINERDN = None
 
 

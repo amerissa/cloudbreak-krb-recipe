@@ -80,7 +80,7 @@ fi
 
 hosts=`curl -s -k -u admin:admin http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts | grep host_name | cut -d : -f 2 | sed 's/"//g' | sed 's/ //g'`
 for host in $hosts; do
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST -d '{"host_components" : [{"HostRoles" : {"component_name":"KERBEROS_CLIENT"}}]}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts?Hosts/host_name=$host
+  curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST -d '{{"host_components" : [{{"HostRoles" : {{"component_name":"KERBEROS_CLIENT"}}}}]}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts?Hosts/host_name=$host
   sleep 5
 done
 
