@@ -44,9 +44,10 @@ else:
     CERTLOC = None
     CERT = None
     CONTAINERDN = None
+ambariuser = raw_input("Ambari Admin user to use for API Calls: ")
+ambaripassword = raw_input("Ambari Admin password to use for API Calls: ")
 
-
-template = { 'KDCEXISTS' : KDCEXISTS, 'KDC' : KDC, 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
+template = { 'ambariuser' : ambariuser, 'ambaripassword' : ambaripassword, 'KDCEXISTS' : KDCEXISTS, 'KDC' : KDC, 'CERT' : CERT, 'UDOMAIN' : UDOMAIN, 'LDOMAIN' : LDOMAIN, 'ADREALM' : ADREALM, 'ADSERVER' : ADSERVER, 'MACHINEOU' : MACHINEOU, 'GROUPSFILTER' : GROUPSFILTER, 'ADUSER' : ADUSER, 'PASSWORD' : PASSWORD, 'BASEDN' : BASEDN,  'CONTAINERDN' : CONTAINERDN }
 
 finaltemplatepost = open('./postinstall.sh', 'w')
 finaltemplatepre = open('./preinstall.sh', 'w')
