@@ -72,10 +72,10 @@ EOF
 
   kdb5_util create -r {UDOMAIN} -s -P "{PASSWORD}"
 
-  systemctl start krb5kdc.service
-  systemctl start kadmin.service
-  systemctl enable krb5kdc.service
-  systemctl enable kadmin.service
+  service krb5kdc start
+  service kadmin start
+  chkconfig krb5kdc on
+  chkconfig kadmin on
   kadmin.local -q "addprinc -pw {PASSWORD} ambari/admin"
   kadmin.local -q "ktadd -norandkey -k /etc/security/keytabs/ambari.keytab ambari/admin"
 fi

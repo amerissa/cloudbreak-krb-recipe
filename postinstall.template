@@ -1,9 +1,9 @@
 grep '"id" :' | cut -d : -f 2 | cut -d , -f 1 | sed 's/ //g'if yum list installed | grep ambari-server; then
   export AMBARI_HOST=$(hostname -f)
-  export CLUSTER_NAME=$(curl -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
+  export CLUSTER_NAME=$(curl -u {ambariuser}:{ambaripassword} -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
 
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS/components/KERBEROS_CLIENT
+  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
+  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X POST http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS/components/KERBEROS_CLIENT
 
   if [ {ADREALM} == "y" ]; then
     tee payload.json <<EOF
@@ -78,18 +78,18 @@ fi
 
 fi
 
-hosts=`curl -s -k -u admin:admin http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts | grep host_name | cut -d : -f 2 | sed 's/"//g' | sed 's/ //g'`
+hosts=`curl -s -k -u {ambariuser}:{ambaripassword} http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts | grep host_name | cut -d : -f 2 | sed 's/"//g' | sed 's/ //g'`
 for host in $hosts; do
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X POST -d '{{"host_components" : [{{"HostRoles" : {{"component_name":"KERBEROS_CLIENT"}}}}]}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts?Hosts/host_name=$host
+  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X POST -d '{{"host_components" : [{{"HostRoles" : {{"component_name":"KERBEROS_CLIENT"}}}}]}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/hosts?Hosts/host_name=$host
   sleep 5
 done
 
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d '{{"ServiceInfo": {{"state" : "INSTALLED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
+  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d '{{"ServiceInfo": {{"state" : "INSTALLED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services/KERBEROS
   sleep 5
-  TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d  '{{"RequestInfo":{{"context":"Stop Service"}},"Body":{{"ServiceInfo":{{"state":"INSTALLED"}}}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services | grep '"id" :' | cut -d : -f 2 | cut -d , -f 1 | sed 's/ //g')
+  TASKID=$(curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d  '{{"RequestInfo":{{"context":"Stop Service"}},"Body":{{"ServiceInfo":{{"state":"INSTALLED"}}}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services | grep '"id" :' | cut -d : -f 2 | cut -d , -f 1 | sed 's/ //g')
   LOOPESCAPE="false"
   until [ "$LOOPESCAPE" == true ]; do
-      TASKSTATUS=$(curl -s -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+      TASKSTATUS=$(curl -s -u {ambariuser}:{ambaripassword} -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
       if [ "$TASKSTATUS" == COMPLETED ]; then
           LOOPESCAPE="true"
       fi
@@ -114,10 +114,10 @@ EOF
 
 
 
-  TASKID=$(curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d @./payload.json http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME | grep "id" | grep -Po '([0-9]+)')
+  TASKID=$(curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d @./payload.json http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME | grep "id" | grep -Po '([0-9]+)')
   LOOPESCAPE="false"
   until [ "$LOOPESCAPE" == true ]; do
-      TASKSTATUS=$(curl -s -u admin:admin -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+      TASKSTATUS=$(curl -s -u {ambariuser}:{ambaripassword} -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
       if [ "$TASKSTATUS" == COMPLETED ]; then
           LOOPESCAPE="true"
       fi
@@ -125,7 +125,7 @@ EOF
       sleep 2
   done
 
-  curl -H "X-Requested-By:ambari" -u admin:admin -i -X PUT -d '{{"ServiceInfo": {{"state" : "STARTED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services
+  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d '{{"ServiceInfo": {{"state" : "STARTED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services
   echo Starting Cluster
 fi
 
