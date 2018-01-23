@@ -125,8 +125,16 @@ EOF
       sleep 2
   done
 
-  curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d '{{"ServiceInfo": {{"state" : "STARTED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services
-  echo Starting Cluster
+  TASKID=$(curl -H "X-Requested-By:ambari" -u {ambariuser}:{ambaripassword} -i -X PUT -d '{{"ServiceInfo": {{"state" : "STARTED"}}}}' http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/services | grep '"id" :' | cut -d : -f 2 | cut -d , -f 1 | sed 's/ //g')
+  LOOPESCAPE="false"
+  until [ "$LOOPESCAPE" == true ]; do
+      TASKSTATUS=$(curl -s -u {ambariuser}:{ambaripassword} -X GET http://$AMBARI_HOST:8080/api/v1/clusters/$CLUSTER_NAME/requests/$TASKID | grep "request_status" | grep -Po '([A-Z]+)')
+      if [ "$TASKSTATUS" == COMPLETED ]; then
+          LOOPESCAPE="true"
+      fi
+      echo Starting Cluster
+      sleep 2
+  done
 fi
 
 
