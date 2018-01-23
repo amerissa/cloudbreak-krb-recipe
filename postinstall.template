@@ -1,4 +1,4 @@
-grep '"id" :' | cut -d : -f 2 | cut -d , -f 1 | sed 's/ //g'if yum list installed | grep ambari-server; then
+if yum list installed | grep ambari-server; then
   export AMBARI_HOST=$(hostname -f)
   export CLUSTER_NAME=$(curl -u {ambariuser}:{ambaripassword} -X GET http://$AMBARI_HOST:8080/api/v1/clusters |grep cluster_name|grep -Po ': "(.+)'|grep -Po '[a-zA-Z0-9\-_!?.]+')
 
