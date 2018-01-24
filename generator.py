@@ -25,6 +25,8 @@ if ADREALM is 'y':
     ADUSER = raw_input('AD User to use for binding: ')
     CERTLOC = raw_input('Path of AD Cert in pem format: ')
     CERT = open(CERTLOC, 'r').read()
+    KDCEXISTS = 'n'
+    KDC = None
     PASSWORD = raw_input('AD Password to use for binding: ')
     BASEDN = raw_input('AD Base DN for Ambari: ')
     CONTAINERDN = raw_input('AD Container DN for Kerberos: ')
